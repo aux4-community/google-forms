@@ -1,7 +1,7 @@
 {
   "scope": "community",
   "name": "google-forms",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Commands to interact with Google Forms using the Google Forms API v1",
   "license": "MIT",
   "tags": [
