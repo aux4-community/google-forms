@@ -1,0 +1,258 @@
+{
+  "scope": "community",
+  "name": "google-forms",
+  "version": "1.0.0",
+  "description": "Commands to interact with Google Forms using the Google Forms API v1",
+  "license": "MIT",
+  "tags": [
+    "google",
+    "forms",
+    "google-forms",
+    "survey",
+    "cli"
+  ],
+  "dependencies": [
+    "community/google-auth",
+    "aux4/curl"
+  ],
+  "system": [
+    [
+      "test:jq --version",
+      "brew:jq",
+      "linux:jq"
+    ]
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "google",
+          "execute": [
+            "profile:google"
+          ],
+          "help": {
+            "text": "Google commands"
+          }
+        }
+      ]
+    },
+    {
+      "name": "google",
+      "commands": [
+        {
+          "name": "forms",
+          "execute": [
+            "profile:google:forms"
+          ],
+          "help": {
+            "text": "Google Forms commands"
+          }
+        }
+      ]
+    },
+    {
+      "name": "google:forms",
+      "commands": [
+        {
+          "name": "services",
+          "private": true,
+          "execute": [
+            "echo '{\"name\":\"forms\",\"scope\":\"https://www.googleapis.com/auth/forms.body https://www.googleapis.com/auth/forms.responses.readonly\",\"readonlyScope\":\"https://www.googleapis.com/auth/forms.body.readonly https://www.googleapis.com/auth/forms.responses.readonly\",\"description\":\"Create and read Google Forms and their responses\"}'"
+          ],
+          "help": {
+            "text": "Output service metadata for auth resolution"
+          }
+        },
+        {
+          "name": "create",
+          "execute": [
+            "set:infoObject=!TITLE=value(title) jq -cn '{title: env.TITLE}'",
+            "set:requestPath=/forms",
+            "set:requestUrl=${apiUrl}${requestPath}",
+            "aux4 curl auth-request --provider google param(tokenFile) --method POST --header 'Content-Type: application/json' --url value(requestUrl) --body 'object(infoObject:info)'"
+          ],
+          "help": {
+            "text": "Create a new Google Form",
+            "variables": [
+              {
+                "name": "title",
+                "text": "Title of the new form"
+              },
+              {
+                "name": "infoObject",
+                "text": "Form info object, derived from --title",
+                "default": "",
+                "type": "json",
+                "private": true
+              },
+              {
+                "name": "tokenFile",
+                "text": "Where the Google OAuth token is stored",
+                "default": "${aux4HomeDir}/.oauth/google.json",
+                "env": "AUX4_GOOGLE_TOKEN_FILE"
+              },
+              {
+                "name": "apiUrl",
+                "text": "Google Forms API base URL",
+                "default": "https://forms.googleapis.com/v1",
+                "env": "FORMS_API_URL",
+                "private": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "execute": [
+            "set:requestUrl=${apiUrl}/forms/${formId}",
+            "aux4 curl auth-request --provider google param(tokenFile) --url value(requestUrl)"
+          ],
+          "help": {
+            "text": "Get a Google Form by ID",
+            "variables": [
+              {
+                "name": "formId",
+                "text": "Google Form ID",
+                "arg": true
+              },
+              {
+                "name": "tokenFile",
+                "text": "Where the Google OAuth token is stored",
+                "default": "${aux4HomeDir}/.oauth/google.json",
+                "env": "AUX4_GOOGLE_TOKEN_FILE"
+              },
+              {
+                "name": "apiUrl",
+                "text": "Google Forms API base URL",
+                "default": "https://forms.googleapis.com/v1",
+                "env": "FORMS_API_URL",
+                "private": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "batch-update",
+          "execute": [
+            "set:requestsBody=json:${requests}",
+            "set:requestUrl=${apiUrl}/forms/${formId}:batchUpdate",
+            "aux4 curl auth-request --provider google param(tokenFile) --method POST --header 'Content-Type: application/json' --url value(requestUrl) --body 'object(requestsBody:requests)'"
+          ],
+          "help": {
+            "text": "Apply a batch of update requests to a form",
+            "variables": [
+              {
+                "name": "formId",
+                "text": "Google Form ID",
+                "arg": true
+              },
+              {
+                "name": "requests",
+                "text": "Update requests as a JSON array (see the Google Forms batchUpdate reference)"
+              },
+              {
+                "name": "requestsBody",
+                "text": "Requests as a JSON array, derived from --requests",
+                "default": "",
+                "type": "json",
+                "private": true
+              },
+              {
+                "name": "tokenFile",
+                "text": "Where the Google OAuth token is stored",
+                "default": "${aux4HomeDir}/.oauth/google.json",
+                "env": "AUX4_GOOGLE_TOKEN_FILE"
+              },
+              {
+                "name": "apiUrl",
+                "text": "Google Forms API base URL",
+                "default": "https://forms.googleapis.com/v1",
+                "env": "FORMS_API_URL",
+                "private": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "responses",
+          "execute": [
+            "profile:google:forms:responses"
+          ],
+          "help": {
+            "text": "Google Forms responses commands"
+          }
+        }
+      ]
+    },
+    {
+      "name": "google:forms:responses",
+      "commands": [
+        {
+          "name": "list",
+          "execute": [
+            "set:requestUrl=${apiUrl}/forms/${formId}/responses",
+            "aux4 curl auth-request --provider google param(tokenFile) --url value(requestUrl)"
+          ],
+          "help": {
+            "text": "List all responses for a form",
+            "variables": [
+              {
+                "name": "formId",
+                "text": "Google Form ID",
+                "arg": true
+              },
+              {
+                "name": "tokenFile",
+                "text": "Where the Google OAuth token is stored",
+                "default": "${aux4HomeDir}/.oauth/google.json",
+                "env": "AUX4_GOOGLE_TOKEN_FILE"
+              },
+              {
+                "name": "apiUrl",
+                "text": "Google Forms API base URL",
+                "default": "https://forms.googleapis.com/v1",
+                "env": "FORMS_API_URL",
+                "private": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "execute": [
+            "set:requestUrl=${apiUrl}/forms/${formId}/responses/${responseId}",
+            "aux4 curl auth-request --provider google param(tokenFile) --url value(requestUrl)"
+          ],
+          "help": {
+            "text": "Get a single form response by ID",
+            "variables": [
+              {
+                "name": "formId",
+                "text": "Google Form ID",
+                "arg": true
+              },
+              {
+                "name": "responseId",
+                "text": "Form response ID"
+              },
+              {
+                "name": "tokenFile",
+                "text": "Where the Google OAuth token is stored",
+                "default": "${aux4HomeDir}/.oauth/google.json",
+                "env": "AUX4_GOOGLE_TOKEN_FILE"
+              },
+              {
+                "name": "apiUrl",
+                "text": "Google Forms API base URL",
+                "default": "https://forms.googleapis.com/v1",
+                "env": "FORMS_API_URL",
+                "private": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
