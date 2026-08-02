@@ -1,17 +1,18 @@
 # google forms batch-update
 
 Part of the `core` group in `test.suite.md`. The Google Forms API is replaced by a
-local echo server (`mock-echo.js`), so the test asserts the request aux4 builds —
-method, path, `Authorization` header and JSON body — without touching a real form.
+local `aux4/mock` server: the test stubs a realistic batchUpdate reply and verifies
+the request aux4 built — method, the `:batchUpdate` path, `Authorization` header and
+the `requests`-wrapped JSON body — without touching a real form.
 
 ## against a local mock API
 
 ```beforeAll
-nohup node mock-echo.js 19012 >/dev/null 2>&1 &
-for i in $(seq 1 40); do curl -s -o /dev/null http://127.0.0.1:19012/ 2>/dev/null && break; sleep 0.25; done
+aux4 aux4 pkger install aux4/mock
 ```
 
 ```afterAll
+aux4 mock stop --port 19012 2>/dev/null
 pkill -f "19012" 2>/dev/null
 ```
 
@@ -28,47 +29,37 @@ pkill -f "19012" 2>/dev/null
 }
 ```
 
-### should POST to the batchUpdate endpoint with a bearer token
+### should POST to the batchUpdate endpoint and return the reply
 
 ```execute
-aux4 google forms batch-update 1FAIpQLScUn --requests '[{"updateFormInfo":{"info":{"title":"Renamed"},"updateMask":"title"}}]' --tokenFile google-token.json --apiUrl http://127.0.0.1:19012
+aux4 mock start --port 19012 >/dev/null 2>&1
+sleep 1
+aux4 mock stub --port 19012 --method POST --path '/forms/{id}:batchUpdate' --status 200 --body '{"form":{"formId":"1FAIpQLScUn","info":{"title":"Renamed"},"revisionId":"00000002"},"replies":[{}]}' >/dev/null
+aux4 google forms batch-update 1FAIpQLScUn --requests '[{"updateFormInfo":{"info":{"title":"Renamed"},"updateMask":"title"}}]' --tokenFile google-token.json --apiUrl http://127.0.0.1:19012/api
 ```
 
 ```expect:partial
-"authorization": "Bearer test-access-token"
+"revisionId":"00000002"
+```
+
+### should target the colon batchUpdate path with a bearer token
+
+```execute
+aux4 mock verify --port 19012 --method POST --path /forms/1FAIpQLScUn:batchUpdate --header "authorization=Bearer test-access-token" --header "content-type=application/json"
 ```
 
 ```expect:partial
-"contentType": "application/json"
-```
-
-```expect:partial
-"method": "POST"
-```
-
-```expect:partial
-"path": "/forms/1FAIpQLScUn:batchUpdate"
+verify ok
 ```
 
 ### should wrap the requests array in a requests key
 
 ```execute
-aux4 google forms batch-update 1FAIpQLScUn --requests '[{"updateFormInfo":{"info":{"title":"Renamed"},"updateMask":"title"}}]' --tokenFile google-token.json --apiUrl http://127.0.0.1:19012 | aux4 json get --path '$.body'
+aux4 mock verify --port 19012 --method POST --path /forms/1FAIpQLScUn:batchUpdate --body-contains '"requests":[{"updateFormInfo":{"info":{"title":"Renamed"},"updateMask":"title"}}]'
 ```
 
-```expect:json
-{
-  "requests": [
-    {
-      "updateFormInfo": {
-        "info": {
-          "title": "Renamed"
-        },
-        "updateMask": "title"
-      }
-    }
-  ]
-}
+```expect:partial
+verify ok
 ```
 
 ## without a stored token
@@ -76,7 +67,7 @@ aux4 google forms batch-update 1FAIpQLScUn --requests '[{"updateFormInfo":{"info
 ### should report that the google provider has no token
 
 ```execute
-aux4 google forms batch-update 1FAIpQLScUn --requests '[]' --tokenFile ./no-such-directory/google.json --apiUrl http://127.0.0.1:19012
+aux4 google forms batch-update 1FAIpQLScUn --requests '[]' --tokenFile ./no-such-directory/google.json --apiUrl http://127.0.0.1:19012/api
 ```
 
 ```error:partial
